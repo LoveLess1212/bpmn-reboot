@@ -1,0 +1,72 @@
+{
+  "preamble": {
+    "title": "loveless/choreoserv",
+    "description": "Aiken contracts for project 'loveless/choreoserv'",
+    "version": "0.0.0",
+    "plutusVersion": "v3",
+    "compiler": {
+      "name": "Aiken",
+      "version": "v1.1.4+79d0e45"
+    },
+    "license": "Apache-2.0"
+  },
+  "validators": [
+    {
+      "title": "oneshot.one_shot_mint_v2.mint",
+      "redeemer": {
+        "title": "redeemer",
+        "schema": {
+          "$ref": "#/definitions/oneshot~1Action"
+        }
+      },
+      "parameters": [
+        {
+          "title": "token_name",
+          "schema": {
+            "$ref": "#/definitions/ByteArray"
+          }
+        }
+      ],
+      "compiledCode": "5901760101003232323232323223225333004323232323253323300a3001300b3754004264646464a66601c600a0022a66602260206ea801c540085854ccc038c00c00454ccc044c040dd50038a8010b0b18071baa006132323232323253330153018002132325333014300b3015375401a2a6660286012002266e3c0080485280a99980a19b87001480044cdc78010090a50375a602a0046eb8c04c00458c058004c94ccc044c018c048dd50008a5eb7bdb1804dd5980b18099baa00132330010013756602c00644a66602a0022980103d87a80001323232325333016337220180042a66602c66e3c0300084cdd2a4000660346e980052f5c02980103d87a80001330060060033756602e0066eb8c054008c064008c05c004dd6180a180a980a980a980a800980a180a180a180a0011bac3012001300e375400e6e1d2002375c601e60186ea8008dc3a40002c601a601c004601800260180046014002600c6ea800452613656375c002ae6955ceaab9e5573eae815d0aba21",
+      "hash": "a7bb81c8c1ea9cbb9355d0bb239b4bb057c1b2eae0881b2be2d0159a"
+    },
+    {
+      "title": "oneshot.one_shot_mint_v2.else",
+      "redeemer": {
+        "schema": {}
+      },
+      "parameters": [
+        {
+          "title": "token_name",
+          "schema": {
+            "$ref": "#/definitions/ByteArray"
+          }
+        }
+      ],
+      "compiledCode": "5901760101003232323232323223225333004323232323253323300a3001300b3754004264646464a66601c600a0022a66602260206ea801c540085854ccc038c00c00454ccc044c040dd50038a8010b0b18071baa006132323232323253330153018002132325333014300b3015375401a2a6660286012002266e3c0080485280a99980a19b87001480044cdc78010090a50375a602a0046eb8c04c00458c058004c94ccc044c018c048dd50008a5eb7bdb1804dd5980b18099baa00132330010013756602c00644a66602a0022980103d87a80001323232325333016337220180042a66602c66e3c0300084cdd2a4000660346e980052f5c02980103d87a80001330060060033756602e0066eb8c054008c064008c05c004dd6180a180a980a980a980a800980a180a180a180a0011bac3012001300e375400e6e1d2002375c601e60186ea8008dc3a40002c601a601c004601800260180046014002600c6ea800452613656375c002ae6955ceaab9e5573eae815d0aba21",
+      "hash": "a7bb81c8c1ea9cbb9355d0bb239b4bb057c1b2eae0881b2be2d0159a"
+    }
+  ],
+  "definitions": {
+    "ByteArray": {
+      "dataType": "bytes"
+    },
+    "oneshot/Action": {
+      "title": "Action",
+      "anyOf": [
+        {
+          "title": "Minting",
+          "dataType": "constructor",
+          "index": 0,
+          "fields": []
+        },
+        {
+          "title": "Burning",
+          "dataType": "constructor",
+          "index": 1,
+          "fields": []
+        }
+      ]
+    }
+  }
+}
