@@ -1,65 +1,99 @@
 import Head from "next/head";
-import { CardanoWallet, MeshBadge } from "@meshsdk/react";
+import Link from "next/link";
 
 export default function Home() {
   return (
-    <div className="bg-gray-900 w-full text-white text-center">
+    <>
       <Head>
-        <title>Mesh App on Cardano</title>
-        <meta name="description" content="A Cardano dApp powered my Mesh" />
+        <title>BPMN Reboot - Development Playground</title>
+        <meta name="description" content="BPMN Parser and Transaction Playground for Cardano" />
       </Head>
-      <main
-        className={`flex min-h-screen flex-col items-center justify-center p-24`}
-      >
-        <h1 className="text-6xl font-thin mb-20">
-          <a href="https://meshjs.dev/" className="text-sky-600">
-            Mesh
-          </a>{" "}
-          Next.js
-        </h1>
+      
+      <div className="p-8">
+        <div className="max-w-4xl mx-auto">
+          {/* Welcome Section */}
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+              Welcome to BPMN Reboot
+            </h1>
+            <p className="text-lg text-gray-600">
+              Development playground for testing BPMN parsing and blockchain transactions
+            </p>
+          </div>
 
-        <div className="mb-20">
-          <CardanoWallet />
+          {/* Quick Links */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <Link href="/playgroundParser" className="group">
+              <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow">
+                <div className="flex items-center mb-4">
+                  <span className="text-3xl mr-3">⚙️</span>
+                  <h2 className="text-2xl font-semibold text-gray-900 group-hover:text-blue-600">
+                    Parser Playground
+                  </h2>
+                </div>
+                <p className="text-gray-600">
+                  Test BPMN XML parsing, explore workflow elements, and validate parser methods in real-time.
+                </p>
+                <div className="mt-4 text-blue-600 font-medium group-hover:underline">
+                  Open Parser Playground →
+                </div>
+              </div>
+            </Link>
+
+            <Link href="/playgroundTransaction" className="group">
+              <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow">
+                <div className="flex items-center mb-4">
+                  <span className="text-3xl mr-3">💳</span>
+                  <h2 className="text-2xl font-semibold text-gray-900 group-hover:text-blue-600">
+                    Transaction Playground
+                  </h2>
+                </div>
+                <p className="text-gray-600">
+                  Test blockchain transactions, smart contract interactions, and workflow enactment.
+                </p>
+                <div className="mt-4 text-blue-600 font-medium group-hover:underline">
+                  Open Transaction Playground →
+                </div>
+              </div>
+            </Link>
+          </div>
+
+          {/* Features Overview */}
+          <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">Features</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-start">
+                <span className="text-green-500 mr-2">✓</span>
+                <div>
+                  <div className="font-medium">BPMN XML Parser</div>
+                  <div className="text-sm text-gray-600">Parse and validate BPMN choreography files</div>
+                </div>
+              </div>
+              <div className="flex items-start">
+                <span className="text-green-500 mr-2">✓</span>
+                <div>
+                  <div className="font-medium">Interactive Navigation</div>
+                  <div className="text-sm text-gray-600">Explore workflow elements and connections</div>
+                </div>
+              </div>
+              <div className="flex items-start">
+                <span className="text-green-500 mr-2">✓</span>
+                <div>
+                  <div className="font-medium">Real-time Testing</div>
+                  <div className="text-sm text-gray-600">Test parser methods and see results instantly</div>
+                </div>
+              </div>
+              <div className="flex items-start">
+                <span className="text-green-500 mr-2">✓</span>
+                <div>
+                  <div className="font-medium">Error Handling</div>
+                  <div className="text-sm text-gray-600">Clear error messages and validation feedback</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 content-center justify-around ">
-          <a
-            href="https://meshjs.dev/apis"
-            className="bg-gray-800 rounded-xl border border-white hover:scale-105 transition max-w-96 p-5 m-5"
-          >
-            <h2 className="text-2xl font-bold mb-2">Documentation</h2>
-            <p className="text-gray-400">
-              Our documentation provide live demos and code samples; great
-              educational tool for learning how Cardano works.
-            </p>
-          </a>
-
-          <a
-            href="https://meshjs.dev/guides"
-            className="bg-gray-800 rounded-xl border border-white hover:scale-105 transition max-w-96  p-5 m-5"
-          >
-            <h2 className="text-2xl font-bold mb-2">Guides</h2>
-            <p className="text-gray-400">
-              Whether you are launching a new NFT project or ecommerce store,
-              these guides will help you get started.
-            </p>
-          </a>
-
-          <a
-            href="https://meshjs.dev/smart-contracts"
-            className="bg-gray-800 rounded-xl border border-white hover:scale-105 transition max-w-96 p-5 m-5 md:mx-auto lg:mx-5 md:col-span-2 lg:col-span-1 "
-          >
-            <h2 className="text-2xl font-bold mb-2">Smart Contracts</h2>
-            <p className="text-gray-400">
-              Open-source smart contracts, complete with documentation, live
-              demos, and end-to-end source code.
-            </p>
-          </a>
-        </div>
-      </main>
-      <footer className="p-8 border-t border-gray-300 flex justify-center">
-        <MeshBadge isDark={true} />
-      </footer>
-    </div>
+      </div>
+    </>
   );
 }
