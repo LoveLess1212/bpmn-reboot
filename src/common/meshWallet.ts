@@ -1,4 +1,4 @@
-import {BlockchainProvider} from "@/common/Provider";
+import { BlockchainProvider } from './Provider';
 import { MeshWallet } from '@meshsdk/core';
 
 export const AppWallet = new MeshWallet({

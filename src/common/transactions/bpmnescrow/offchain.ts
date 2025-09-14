@@ -2,32 +2,25 @@ import blueprint from './plutus.json';
 import {
   applyParamsToScript,
   BrowserWallet,
-  BuiltinByteString,
   byteString,
   conStr,
   conStr0,
-  ConStr0,
   conStr1,
-  ConStr1,
   mConStr0,
-  mConStr1,
-  MeshValue,
   deserializeAddress,
   IFetcher,
-  integer,
-  list,
   MeshTxBuilder,
   MeshWallet,
   serializePlutusScript,
   UTxO,
-  deserializeDatum, mConStr,
+  deserializeDatum,
   mConStr2,
   serializeAddressObj,
   PubKeyAddress,
   ByteString
 } from "@meshsdk/core";
 import { ActiveEscrow, InitEscrow, NodeState } from './types';
-import { initEscrow, initEscrow2activeEscrow, activeEscrow, updateDatum } from './helper';
+import { initEscrow, initEscrow2activeEscrow, updateDatum } from './helper';
 
 export const BpmnEscrowBlueprint = blueprint;
 /**
@@ -245,10 +238,10 @@ export class BpmnEscrowContract {
       .requiredSignerHash(buyerAddress)
       .changeAddress(walletAddress)
       .txInCollateral(
-        collateral.input.txHash,
-        collateral.input.outputIndex,
-        collateral.output.amount,
-        collateral.output.address
+        collateral!.input.txHash,
+        collateral!.input.outputIndex,
+        collateral!.output.amount,
+        collateral!.output.address
       )
       .selectUtxosFrom(utxos)
       .complete();

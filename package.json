@@ -1,35 +1,31 @@
 {
-  "name": "bpmn-reboot",
+  "name": "new_bpmn_enact",
+  "description": "A Mesh starter template for NextJS",
+  "author": "MeshJS",
+  "license": "Apache-2.0",
   "version": "0.1.0",
-  "private": true,
   "scripts": {
-    "start": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
-    "preview": "next start",
-    "lint": "next lint",
-    "test": "jest"
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
-    "@fluentui/react-components": "^9.68.3",
-    "@tanstack/react-query": "^5.84.2",
-    "@tanstack/react-query-devtools": "^5.84.2",
+    "@meshsdk/core": "^1.9.0-beta.0",
+    "@meshsdk/react": "^1.9.0-beta.0",
     "fast-xml-parser": "^5.2.5",
-    "fluentui-next-appdir-directive": "^0.2.0",
-    "next": "15.4.6",
-    "pinata": "^2.4.9",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "next": "^15.5.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
     "@types/node": "^20",
-    "@types/react": "^18.3.23",
-    "@types/react-dom": "^18.3.7",
-    "eslint": "^9",
-    "eslint-config-next": "15.4.6",
-    "jest": "^29.7.0",
-    "prettier": "^3.6.2",
-    "ts-jest": "^29.2.5",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "15.0.3",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
     "typescript": "^5"
   }
 }
