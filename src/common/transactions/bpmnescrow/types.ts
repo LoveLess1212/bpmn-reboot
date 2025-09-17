@@ -51,4 +51,5 @@ export interface InitEscrowParams {
   hashBpmn: string;
   incoming?: string[];
   outgoing?: string[];
+  proceed: number;
 }

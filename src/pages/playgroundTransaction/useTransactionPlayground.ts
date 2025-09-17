@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
 import { BpmnEscrowContract } from '../../common/transactions/bpmnescrow/offchain';
 import { getNodeState } from '../../common/transactions/bpmnescrow/helper';
-import { MeshTxBuilder, BrowserWallet, resolveDataHash } from '@meshsdk/core';
+import {
+  MeshTxBuilder,
+  BrowserWallet,
+  resolveDataHash,
+  UTxO,
+} from '@meshsdk/core';
 import { useWallet } from '@meshsdk/react';
-import { BlockFrostProd } from '../../common/Provider';
+import { KoiosClientProd } from '@/common/Provider';
 
 export const useTransactionPlayground = () => {
   const { wallet, connected } = useWallet();
@@ -19,7 +24,6 @@ export const useTransactionPlayground = () => {
     hashBpmn: 'bpmn_hash_example',
     outgoing: 'task2,task3',
   });
-
   const [runTaskForm, setRunTaskForm] = useState({
     utxoHash: '',
     utxoIndex: '0',
@@ -39,23 +43,23 @@ export const useTransactionPlayground = () => {
   });
 
   const [showUtxosBrowser, setShowUtxosBrowser] = useState<boolean>(false);
-  const [availableUtxos, setAvailableUtxos] = useState<any[]>([]);
+  const [availableUtxos, setAvailableUtxos] = useState<UTxO[]>([]);
 
   // Utility function states
   const [bpmnContent, setBpmnContent] = useState<string>('');
   const [hashedBpmn, setHashedBpmn] = useState<string>('');
   const [txHexToSign, setTxHexToSign] = useState<string>('');
   const [signedTxHex, setSignedTxHex] = useState<string>('');
+  const [isPartialSigning, setIsPartialSigning] = useState<boolean>(false);
 
   // Add wallet address state
   const [walletAddress, setWalletAddress] = useState<string>('');
 
   // TX Hash lookup states
   const [txHashInput, setTxHashInput] = useState<string>('');
-  const [txUtxos, setTxUtxos] = useState<any[]>([]);
+  const [txUtxos, setTxUtxos] = useState<UTxO[]>([]);
   const [txLookupLoading, setTxLookupLoading] = useState<boolean>(false);
   const [txLookupError, setTxLookupError] = useState<string>('');
-
   const loadAvailableUtxos = async () => {
     if (!wallet) return;
     try {
@@ -63,18 +67,24 @@ export const useTransactionPlayground = () => {
       setAvailableUtxos(utxos);
       setShowUtxosBrowser(true);
     } catch (err) {
-      setError(`Failed to load UTxOs: ${err instanceof Error ? err.message : String(err)}`);
+      setError(
+        `Failed to load UTxOs: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
     }
   };
 
   const [networkId, setNetworkId] = useState<number>(0); // 0 for preprod, 1 for mainnet
-  const [proceedPerTask, setProceedPerTask] = useState<number>(2000000);
+  const [proceedPerTask, setProceedPerTask] = useState<number>(2500000);
 
   useEffect(() => {
     if (connected && wallet) {
-      const mesh = new MeshTxBuilder();
-      const fetcher = BlockFrostProd();
-      console.log('Using Blockfrost API Key:', process.env.BLOCK_FROST_API);
+      const fetcher = KoiosClientProd();
+      const mesh = new MeshTxBuilder({
+        fetcher: fetcher,
+        submitter: fetcher,
+      });
       const contractInstance = new BpmnEscrowContract({
         mesh,
         fetcher,
@@ -89,7 +99,9 @@ export const useTransactionPlayground = () => {
 
   const submitTransaction = async (hex: string) => {
     if (!wallet || !hex.trim()) {
-      setError('Please ensure wallet is connected and transaction hex is available');
+      setError(
+        'Please ensure wallet is connected and transaction hex is available'
+      );
       return;
     }
 
@@ -98,13 +110,19 @@ export const useTransactionPlayground = () => {
       setError('');
       const txHash = await wallet.submitTx(hex);
       setTxHex('');
-      alert(`Transaction submitted successfully!\nTx Hash: ${txHash}\n\nYou can track this transaction on a Cardano explorer.`);
+      alert(
+        `Transaction submitted successfully!\nTx Hash: ${txHash}\n\nYou can track this transaction on a Cardano explorer.`
+      );
       if (showUtxosBrowser) {
         await loadAvailableUtxos();
       }
     } catch (err) {
       console.error('Transaction submission failed:', err);
-      setError(`Transaction Submission Error: ${err instanceof Error ? err.message : String(err)}`);
+      setError(
+        `Transaction Submission Error: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
     } finally {
       setLoading(false);
     }
@@ -116,7 +134,9 @@ export const useTransactionPlayground = () => {
       return;
     }
     if (!contract) {
-      setTxLookupError('Contract not initialized. Please ensure wallet is connected.');
+      setTxLookupError(
+        'Contract not initialized. Please ensure wallet is connected.'
+      );
       return;
     }
     try {
@@ -130,7 +150,11 @@ export const useTransactionPlayground = () => {
         setTxLookupError('No UTxOs found for this transaction hash');
       }
     } catch (err) {
-      setTxLookupError(`Failed to lookup transaction: ${err instanceof Error ? err.message : String(err)}`);
+      setTxLookupError(
+        `Failed to lookup transaction: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
       setTxUtxos([]);
     } finally {
       setTxLookupLoading(false);
@@ -171,7 +195,10 @@ export const useTransactionPlayground = () => {
       try {
         utxo = await contract.getUtxobyHash(utxoHash, parseInt(utxoIndex));
       } catch (blockfrostError) {
-        console.warn('Blockfrost fetch failed, continuing with wallet-only approach:', blockfrostError);
+        console.warn(
+          'Blockfrost fetch failed, continuing with wallet-only approach:',
+          blockfrostError
+        );
       }
     }
     return utxo;
@@ -187,23 +214,34 @@ export const useTransactionPlayground = () => {
       setHashedBpmn(hash);
       setError('');
     } catch (err) {
-      setError(`BPMN Hashing Error: ${err instanceof Error ? err.message : String(err)}`);
+      setError(
+        `BPMN Hashing Error: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
       setHashedBpmn('');
     }
   };
 
   const handleSignTransaction = async () => {
     if (!wallet || !txHexToSign.trim()) {
-      setError('Please provide transaction hex to sign and ensure wallet is connected');
+      setError(
+        'Please provide transaction hex to sign and ensure wallet is connected'
+      );
       return;
     }
     try {
       setLoading(true);
-      const signedHex = await wallet.signTx(txHexToSign);
+      const signedHex = await wallet.signTx(txHexToSign, isPartialSigning);
       setSignedTxHex(signedHex);
+      console.log('Transaction signed successfully:', signedHex);
       setError('');
     } catch (err) {
-      setError(`Transaction Signing Error: ${err instanceof Error ? err.message : String(err)}`);
+      setError(
+        `Transaction Signing Error: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
       setSignedTxHex('');
     } finally {
       setLoading(false);
@@ -219,15 +257,26 @@ export const useTransactionPlayground = () => {
         .split(',')
         .map((s) => s.trim())
         .filter((s) => s);
+
+      // Hash current task
+      const hashedCurrent = resolveDataHash(sellerListingForm.current);
+
+      // Hash all outgoing tasks
+      const hashedOutgoing = outgoingArray.map((task) => resolveDataHash(task));
+
       const hex = await contract.sellerListing(
-        sellerListingForm.current,
+        hashedCurrent,
         sellerListingForm.buyerAddress,
         sellerListingForm.hashBpmn,
-        outgoingArray
+        hashedOutgoing
       );
       setTxHex(hex);
     } catch (err) {
-      setError(`Seller Listing Error: ${err instanceof Error ? err.message : String(err)}`);
+      setError(
+        `Seller Listing Error: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
     } finally {
       setLoading(false);
     }
@@ -240,22 +289,50 @@ export const useTransactionPlayground = () => {
     try {
       const utxo = await findUtxo(runTaskForm.utxoHash, runTaskForm.utxoIndex);
       if (!utxo) {
-        throw new Error(`UTxO not found: ${runTaskForm.utxoHash}#${runTaskForm.utxoIndex}. Make sure the UTxO exists and is accessible.`);
+        throw new Error(
+          `UTxO not found: ${runTaskForm.utxoHash}#${runTaskForm.utxoIndex}. Make sure the UTxO exists and is accessible.`
+        );
       }
+
+      // Hash current task
+      const hashedCurrent = resolveDataHash(runTaskForm.newCurrent);
+
+      // Hash incoming tasks if present
       const incomingArray = runTaskForm.incoming
-        ? runTaskForm.incoming.split(',').map((s) => s.trim()).filter((s) => s)
+        ? runTaskForm.incoming
+            .split(',')
+            .map((s) => s.trim())
+            .filter((s) => s)
+            .map((task) => resolveDataHash(task))
         : undefined;
+
+      // Hash outgoing tasks if present
       const outgoingArray = runTaskForm.outgoing
-        ? runTaskForm.outgoing.split(',').map((s) => s.trim()).filter((s) => s)
+        ? runTaskForm.outgoing
+            .split(',')
+            .map((s) => s.trim())
+            .filter((s) => s)
+            .map((task) => resolveDataHash(task))
         : undefined;
-      const nodeState = getNodeState(runTaskForm.newCurrent, incomingArray, outgoingArray);
+
+      const nodeState = getNodeState(
+        hashedCurrent,
+        incomingArray,
+        outgoingArray
+      );
       if (!nodeState) {
         throw new Error('Failed to create node state');
       }
-      const hex = await contract.runTask(utxo, nodeState, runTaskForm.artifactCID);
+      const hex = await contract.runTask(
+        utxo,
+        nodeState,
+        runTaskForm.artifactCID
+      );
       setTxHex(hex);
     } catch (err) {
-      setError(`Run Task Error: ${err instanceof Error ? err.message : String(err)}`);
+      setError(
+        `Run Task Error: ${err instanceof Error ? err.message : String(err)}`
+      );
     } finally {
       setLoading(false);
     }
@@ -268,12 +345,16 @@ export const useTransactionPlayground = () => {
     try {
       const utxo = await contract.getUtxobyHash(compensatedForm.utxoHash);
       if (!utxo) {
-        throw new Error(`UTxO not found for transaction: ${compensatedForm.utxoHash}. Make sure the transaction exists and contains a script UTxO.`);
+        throw new Error(
+          `UTxO not found for transaction: ${compensatedForm.utxoHash}. Make sure the transaction exists and contains a script UTxO.`
+        );
       }
       const hex = await contract.compensated(utxo);
       setTxHex(hex);
     } catch (err) {
-      setError(`Compensated Error: ${err instanceof Error ? err.message : String(err)}`);
+      setError(
+        `Compensated Error: ${err instanceof Error ? err.message : String(err)}`
+      );
     } finally {
       setLoading(false);
     }
@@ -284,14 +365,23 @@ export const useTransactionPlayground = () => {
     clearResults();
     setLoading(true);
     try {
-      const utxo = await findUtxo(uncompensatedForm.utxoHash, uncompensatedForm.utxoIndex);
+      const utxo = await findUtxo(
+        uncompensatedForm.utxoHash,
+        uncompensatedForm.utxoIndex
+      );
       if (!utxo) {
-        throw new Error(`UTxO not found: ${uncompensatedForm.utxoHash}#${uncompensatedForm.utxoIndex}. Make sure the UTxO exists and is accessible.`);
+        throw new Error(
+          `UTxO not found: ${uncompensatedForm.utxoHash}#${uncompensatedForm.utxoIndex}. Make sure the UTxO exists and is accessible.`
+        );
       }
       const hex = await contract.uncompensated(utxo);
       setTxHex(hex);
     } catch (err) {
-      setError(`Uncompensated Error: ${err instanceof Error ? err.message : String(err)}`);
+      setError(
+        `Uncompensated Error: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
     } finally {
       setLoading(false);
     }
@@ -335,6 +425,8 @@ export const useTransactionPlayground = () => {
     setTxHexToSign,
     signedTxHex,
     setSignedTxHex,
+    isPartialSigning,
+    setIsPartialSigning,
     walletAddress,
     setWalletAddress,
     txHashInput,

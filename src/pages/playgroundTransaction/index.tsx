@@ -8,9 +8,7 @@ const DevPlayground = () => {
     connected,
     contract,
     txHex,
-    setTxHex,
     error,
-    setError,
     loading,
     sellerListingForm,
     setSellerListingForm,
@@ -21,27 +19,21 @@ const DevPlayground = () => {
     uncompensatedForm,
     setUncompensatedForm,
     showUtxosBrowser,
-    setShowUtxosBrowser,
     availableUtxos,
-    setAvailableUtxos,
     bpmnContent,
     setBpmnContent,
     hashedBpmn,
-    setHashedBpmn,
     txHexToSign,
     setTxHexToSign,
     signedTxHex,
-    setSignedTxHex,
+    isPartialSigning,
+    setIsPartialSigning,
     walletAddress,
-    setWalletAddress,
     txHashInput,
     setTxHashInput,
     txUtxos,
-    setTxUtxos,
     txLookupLoading,
-    setTxLookupLoading,
     txLookupError,
-    setTxLookupError,
     networkId,
     setNetworkId,
     proceedPerTask,
@@ -50,8 +42,6 @@ const DevPlayground = () => {
     submitTransaction,
     lookupTxUtxos,
     clearTxLookup,
-    loadWalletAddress,
-    clearResults,
     handleHashBpmn,
     handleSignTransaction,
     handleSellerListing,
@@ -441,13 +431,27 @@ const DevPlayground = () => {
               />
             </div>
             <div className='flex gap-4 items-center mb-4'>
-              <button
-                onClick={handleSignTransaction}
-                disabled={loading || !txHexToSign.trim() || !wallet}
-                className='bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 disabled:bg-gray-400'
-              >
-                {loading ? 'Signing...' : 'Sign Transaction'}
-              </button>
+              <div className='flex items-center gap-4'>
+                <button
+                  onClick={handleSignTransaction}
+                  disabled={loading || !txHexToSign.trim() || !wallet}
+                  className='bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 disabled:bg-gray-400'
+                >
+                  {loading ? 'Signing...' : 'Sign Transaction'}
+                </button>
+                <div className='flex items-center gap-2'>
+                  <input
+                    type='checkbox'
+                    id='partialSigning'
+                    checked={isPartialSigning}
+                    onChange={(e) => setIsPartialSigning(e.target.checked)}
+                    className='w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500'
+                  />
+                  <label htmlFor='partialSigning' className='text-sm text-gray-700'>
+                    Partial Signing
+                  </label>
+                </div>
+              </div>
               {signedTxHex && (
                 <button
                   onClick={() => copyToClipboard(signedTxHex)}

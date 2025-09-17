@@ -15,9 +15,16 @@ import {
   serializeAddressObj,
   PubKeyAddress,
   ByteString,
+  Redeemer,
+  Action,
 } from '@meshsdk/core';
-import { ActiveEscrow, InitEscrowParams, NodeState } from './types';
-import { initEscrow, updateDatum } from './helper';
+import { ActiveEscrow, InitEscrow, InitEscrowParams, NodeState } from './types';
+import {
+  activeEscrow,
+  initEscrow,
+  updateActiveDatum,
+  updateDatum,
+} from './helper';
 
 export const BpmnEscrowBlueprint = blueprint;
 /**
@@ -29,8 +36,9 @@ export class BpmnEscrowContract {
   private wallet: BrowserWallet | MeshWallet;
   private networkId = 0;
   private fetcher: IFetcher;
-  private proceedPerTask = 2000000;
-
+  private proceedPerTask = 2500000;
+  private scriptAddr: string;
+  private buyerAddress: string | undefined;
   /**
    * Creates an instance of BpmnEscrowContract.
    * @param {Object} params - The constructor parameters
@@ -38,7 +46,7 @@ export class BpmnEscrowContract {
    * @param {IFetcher} params.fetcher - The fetcher interface for UTxO operations
    * @param {BrowserWallet | MeshWallet} params.wallet - The wallet instance
    * @param {number} [params.networkId=0] - The network ID (0 for preprod, 1 for mainnet)
-   * @param {number} [params.proceedPerTask=2000000] - The proceed amount per task in lovelace
+   * @param {number} [params.proceedPerTask=2500000] - The proceed amount per task in lovelace
    */
 
   constructor({
@@ -46,7 +54,7 @@ export class BpmnEscrowContract {
     fetcher,
     wallet,
     networkId = 0,
-    proceedPerTask = 2000000,
+    proceedPerTask = 2500000,
   }: {
     mesh: MeshTxBuilder;
     fetcher: IFetcher;
@@ -64,6 +72,12 @@ export class BpmnEscrowContract {
       this.mesh.setNetwork('preprod');
     }
     this.proceedPerTask = proceedPerTask;
+    const { address: scriptAddr } = serializePlutusScript(
+      { code: this.getScriptCbor(), version: 'V3' },
+      undefined,
+      this.networkId
+    );
+    this.scriptAddr = scriptAddr;
   }
 
   /**
@@ -79,32 +93,35 @@ export class BpmnEscrowContract {
     hashBpmn: string,
     outgoing: string[]
   ): Promise<string> => {
-    const { utxos, walletAddress } = await this.getWalletInfoForTx();
-    const { address: scriptAddr } = serializePlutusScript(
-      { code: this.getScriptCbor(), version: 'V3' },
-      undefined,
-      this.networkId
-    );
+    const { utxos, walletAddress: ownAddress } =
+      await this.getWalletInfoForTx();
     const proceed = [
       {
         unit: 'lovelace',
         quantity: this.proceedPerTask.toString(),
       },
     ];
-    const initEscrowDatum: InitEscrowParams = {
-      seller: walletAddress,
+    const initEscrowDatumRaw: InitEscrowParams = {
       buyer: buyerAddress,
+      seller: ownAddress,
       current,
       hashBpmn,
       outgoing,
+      proceed: this.proceedPerTask,
     };
+    const initEscrowDatum = initEscrow(initEscrowDatumRaw);
+    const buyerAddr = initEscrowDatum.fields[0].bytes.toString();
+    const sellerAddr = initEscrowDatum.fields[1].bytes.toString();
     await this.mesh
-      .txOut(scriptAddr, proceed)
-      .txOutInlineDatumValue(initEscrow(initEscrowDatum), 'JSON')
-      .changeAddress(walletAddress)
+      .txOut(this.scriptAddr, proceed)
+      .txOutInlineDatumValue(initEscrowDatum, 'JSON')
+      .changeAddress(ownAddress)
+      .requiredSignerHash(buyerAddr)
+      .requiredSignerHash(sellerAddr)
       .selectUtxosFrom(utxos)
       .complete();
-    return this.mesh.txHex;
+    const signedTx = await this.wallet.signTx(this.mesh.txHex, true);
+    return signedTx;
   };
 
   /**
@@ -119,56 +136,62 @@ export class BpmnEscrowContract {
     nodeState: NodeState,
     artifactCID: string
   ): Promise<string> => {
-    const { utxos, walletAddress, collateral } =
-      await this.getWalletInfoForTx();
-    const { address: scriptAddr } = serializePlutusScript(
-      { code: this.getScriptCbor(), version: 'V3' },
-      undefined,
-      this.networkId
-    );
-    const inputDatum = deserializeDatum<ActiveEscrow>(
-      oldUtxo.output.plutusData!
-    );
-    // console.log(inputDatum);
-    const outputDatum = updateDatum(inputDatum, nodeState, artifactCID);
-    // console.log(outputDatum);
-    const { buyer: buyer, seller: seller } =
-      this.getDataFromActiveEscrowDatum(oldUtxo);
-    // get the old amount of script then + proceed
-    const inputLoveLaceFromSCript = oldUtxo.output.amount.find(
-      (a) => a.unit === 'lovelace'
-    )!.quantity;
-    // console.log(inputLoveLaceFromSCript);
-    const proceed = [
-      {
-        unit: 'lovelace',
-        quantity: parseInt(inputLoveLaceFromSCript).toString(),
-      },
-    ];
-    await this.mesh
-      .spendingPlutusScriptV3()
-      .txIn(
-        oldUtxo.input.txHash,
-        oldUtxo.input.outputIndex,
-        oldUtxo.output.amount,
-        scriptAddr
-      )
-      .spendingReferenceTxInInlineDatumPresent()
-      .txInRedeemerValue(conStr0([nodeState]), 'JSON') // equal to Task(new_task) in aiken
-      .txInScript(this.getScriptCbor())
-      .txOut(scriptAddr, proceed)
-      .txOutInlineDatumValue(outputDatum, 'JSON')
-      .txInCollateral(
-        collateral!.input.txHash,
-        collateral!.input.outputIndex,
-        collateral!.output.amount,
-        collateral!.output.address
-      )
-      .selectUtxosFrom(utxos)
-      .requiredSignerHash(buyer)
-      .requiredSignerHash(seller)
-      .changeAddress(walletAddress)
-      .complete();
+    try {
+      const { utxos, walletAddress, collateral } =
+        await this.getWalletInfoForTx();
+
+      const inputDatum = deserializeDatum(oldUtxo.output.plutusData!);
+      let outputDatum: ActiveEscrow;
+      if (inputDatum.fields.length === 5) {
+        outputDatum = updateDatum(inputDatum, nodeState, artifactCID);
+      } else {
+        outputDatum = updateActiveDatum(inputDatum, nodeState, artifactCID);
+      }
+      console.log('outputDatum:', outputDatum);
+      const { buyer: buyer, seller: seller } = this.getDataFromDatum(oldUtxo);
+      // get the old amount of script then + proceed
+      const inputLoveLaceFromSCript = oldUtxo.output.amount.find(
+        (a) => a.unit === 'lovelace'
+      )!.quantity;
+      // console.log(inputLoveLaceFromSCript);
+      const proceed = [
+        {
+          unit: 'lovelace',
+          quantity: parseInt(inputLoveLaceFromSCript).toString(),
+        },
+      ];
+      const redeemer = conStr(0, []);
+      await this.mesh
+        .spendingPlutusScriptV3()
+        .txIn(
+          oldUtxo.input.txHash,
+          oldUtxo.input.outputIndex,
+          oldUtxo.output.amount,
+          this.scriptAddr
+        )
+        .spendingReferenceTxInInlineDatumPresent()
+        .spendingReferenceTxInRedeemerValue(redeemer, 'JSON', {
+          mem: 220000,
+          steps: 79000000,
+        })
+        .txInScript(this.getScriptCbor())
+        .txOut(this.scriptAddr, proceed)
+        .txOutInlineDatumValue(outputDatum, 'JSON')
+        .txInCollateral(
+          collateral!.input.txHash,
+          collateral!.input.outputIndex,
+          collateral!.output.amount,
+          collateral!.output.address
+        )
+        .selectUtxosFrom(utxos)
+        .requiredSignerHash(buyer)
+        .requiredSignerHash(seller)
+        .changeAddress(walletAddress)
+        .complete();
+    } catch (error) {
+      console.error('Error running task:', error);
+      throw error;
+    }
     return this.mesh.txHex;
   };
 
@@ -181,19 +204,11 @@ export class BpmnEscrowContract {
   compensated = async (oldUtxo: UTxO): Promise<string> => {
     const { utxos, walletAddress, collateral } =
       await this.getWalletInfoForTx();
-    const { address: scriptAddr } = serializePlutusScript(
-      { code: this.getScriptCbor(), version: 'V3' },
-      undefined,
-      this.networkId
-    );
-    // console.log(oldUtxo);
-    // const inputDatum = deserializeDatum<ActiveEscrow>(oldUtxo.output.plutusData!);
-    // console.log(inputDatum);
     const {
       buyer: buyerAddress,
       seller: sellerAddress,
       proceed: proceed,
-    } = this.getDataFromActiveEscrowDatum(oldUtxo);
+    } = this.getDataFromDatum(oldUtxo);
     const sellerReceiveAddr = this.getAddressfromPubKeyHash(
       byteString(sellerAddress)
     );
@@ -203,17 +218,19 @@ export class BpmnEscrowContract {
         quantity: proceed.toString(),
       },
     ];
-    console.log(sellerReceive);
     await this.mesh
       .spendingPlutusScriptV3()
       .txIn(
         oldUtxo.input.txHash,
         oldUtxo.input.outputIndex,
         oldUtxo.output.amount,
-        scriptAddr
+        this.scriptAddr
       )
       .spendingReferenceTxInInlineDatumPresent()
-      .spendingReferenceTxInRedeemerValue(conStr(1, []), 'JSON') // equal to Compensated in aiken
+      .spendingReferenceTxInRedeemerValue(conStr(1, []), 'JSON', {
+        mem: 170000,
+        steps: 61000000,
+      })
       .txInScript(this.getScriptCbor())
       .txOut(sellerReceiveAddr, sellerReceive)
       .requiredSignerHash(sellerAddress)
@@ -240,11 +257,6 @@ export class BpmnEscrowContract {
   uncompensated = async (oldUtxo: UTxO): Promise<string> => {
     const { utxos, walletAddress, collateral } =
       await this.getWalletInfoForTx();
-    const { address: scriptAddr } = serializePlutusScript(
-      { code: this.getScriptCbor(), version: 'V3' },
-      undefined,
-      this.networkId
-    );
     // console.log(oldUtxo);
     // const inputDatum = deserializeDatum<ActiveEscrow>(oldUtxo.output.plutusData!);
     // console.log(inputDatum);
@@ -252,27 +264,31 @@ export class BpmnEscrowContract {
       buyer: buyerAddress,
       seller: sellerAddress,
       proceed: proceed,
-    } = this.getDataFromActiveEscrowDatum(oldUtxo);
+    } = this.getDataFromDatum(oldUtxo);
     const sellerReceiveAddr = this.getAddressfromPubKeyHash(
       byteString(sellerAddress)
     );
+
+    console.log('sellerReceiveAddr:', sellerReceiveAddr);
     const sellerReceive = [
       {
         unit: 'lovelace',
         quantity: proceed.toString(),
       },
     ];
-    console.log(sellerReceive);
     await this.mesh
       .spendingPlutusScriptV3()
       .txIn(
         oldUtxo.input.txHash,
         oldUtxo.input.outputIndex,
         oldUtxo.output.amount,
-        scriptAddr
+        this.scriptAddr
       )
       .spendingReferenceTxInInlineDatumPresent()
-      .spendingReferenceTxInRedeemerValue(conStr(2, []), 'JSON') // equal to Uncompensated in aiken
+      .spendingReferenceTxInRedeemerValue(conStr(2, []), 'JSON', {
+        mem: 170000, // the value is now manually set
+        steps: 61000000, // the value is now manually set
+      }) // equal to Uncompensated in aiken
       .txInScript(this.getScriptCbor())
       .txOut(sellerReceiveAddr, sellerReceive)
       .requiredSignerHash(sellerAddress)
@@ -295,7 +311,7 @@ export class BpmnEscrowContract {
    * @private
    */
   getScriptCbor = (): string => {
-    let script = BpmnEscrowBlueprint.validators[0]!.compiledCode;
+    const script = BpmnEscrowBlueprint.validators[0]!.compiledCode;
     return applyParamsToScript(script, []);
   };
 
@@ -309,19 +325,13 @@ export class BpmnEscrowContract {
     walletAddress: string;
     collateral: UTxO | undefined;
   }> => {
-    let utxos = await this.wallet.getUtxos();
-    let walletAddress = await this.wallet.getChangeAddress();
-    let collateralRaw = await this.wallet.getCollateral();
-    let collateral = collateralRaw ? collateralRaw[0] : undefined;
+    const utxos = await this.wallet.getUtxos();
+    const walletAddress = await this.wallet.getChangeAddress();
+    const collateralRaw = await this.wallet.getCollateral();
+    console.log('collateralRaw:', collateralRaw);
+    const collateral = collateralRaw ? collateralRaw[0] : undefined;
     return { utxos, walletAddress, collateral };
   };
-
-  /**
-   * Fetches a UTxO by its transaction hash and output index.
-   * @param {string} hashWithIndex - The transaction hash with index in format "hash#index" or just "hash"
-   * @param {number} [outputIndex] - Optional output index if not provided in hashWithIndex
-   * @returns {Promise<UTxO | undefined>} The found UTxO or undefined
-   */
 
   getUtxobyHash = async (
     hashWithIndex: string,
@@ -370,14 +380,21 @@ export class BpmnEscrowContract {
    * @private
    */
 
-  getDataFromActiveEscrowDatum = (
+  getDataFromDatum = (
     utxo: UTxO
   ): { buyer: string; seller: string; proceed: number } => {
-    const data = deserializeDatum<ActiveEscrow>(utxo.output.plutusData!);
+    const data = deserializeDatum(utxo.output.plutusData!);
+    if (data.fields.length === 5) {
+      return {
+        buyer: data.fields[0].bytes.toString(),
+        seller: data.fields[1].bytes.toString(),
+        proceed: Number(data.fields[4].int),
+      };
+    }
     return {
       buyer: data.fields[0].bytes.toString(),
       seller: data.fields[1].bytes.toString(),
-      proceed: data.fields[5].int as number,
+      proceed: Number(data.fields[5].int),
     };
   };
   /**

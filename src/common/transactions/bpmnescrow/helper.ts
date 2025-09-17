@@ -79,6 +79,7 @@ export const initEscrow = ({
   hashBpmn,
   incoming,
   outgoing,
+  proceed,
 }: InitEscrowParams): InitEscrow => {
   const { pubKeyHash: sellerPubKeyHash } = deserializeAddress(seller);
   const { pubKeyHash: buyerPubKeyHash } = deserializeAddress(buyer);
@@ -88,11 +89,11 @@ export const initEscrow = ({
     );
   }
   return conStr0([
-    byteString(sellerPubKeyHash),
     byteString(buyerPubKeyHash),
+    byteString(sellerPubKeyHash),
     getNodeState(current, incoming, outgoing)!,
     byteString(hashBpmn),
-    integer(2000000),
+    integer(proceed),
   ]);
 };
 
@@ -112,7 +113,7 @@ export const initEscrow2activeEscrow = (
     buyer,
     seller,
     nodeState,
-    byteString(artifactCID),
+    byteString(Buffer.from(artifactCID).toString('hex')),
     hashBpmn,
     proceed,
   ]);
@@ -150,7 +151,7 @@ export const activeEscrow = ({
     byteString(buyerPubKeyHash),
     byteString(sellerPubKeyHash),
     getNodeState(current, incoming, outgoing)!,
-    byteString(artifactCID),
+    byteString(Buffer.from(artifactCID).toString('hex')),
     byteString(hashBpmn),
     integer(proceed),
   ]);
@@ -163,18 +164,49 @@ export const activeEscrow = ({
  * @returns A new concatenated string containing the updated datum values
  */
 export const updateDatum = (
+  oldDatum: InitEscrow,
+  newNodeState: NodeState,
+  artifactCID: string
+): ActiveEscrow => {
+  const [buyer, seller, _nodeState, hashBpmn, proceed] = oldDatum.fields;
+  console.log('hashBpmn:', hashBpmn);
+  const artifactCidIn = Buffer.from(artifactCID).toString('hex');
+  const byteStringArtifactCidIn = byteString(artifactCidIn);
+  try {
+    return conStr1([
+      buyer,
+      seller,
+      newNodeState,
+      byteStringArtifactCidIn,
+      hashBpmn,
+      proceed,
+    ]);
+  } catch (error) {
+    console.error('Error updating datum:', error);
+    throw error;
+  }
+};
+
+export const updateActiveDatum = (
   oldDatum: ActiveEscrow,
   newNodeState: NodeState,
   artifactCID: string
 ): ActiveEscrow => {
-  const [buyer, seller, _nodeState, _artifactCID, hashBpmn, proceed] =
+  const [buyer, seller, _nodeState, _oldArtifactCID, hashBpmn, proceed] =
     oldDatum.fields;
-  return conStr1([
-    buyer,
-    seller,
-    newNodeState,
-    byteString(artifactCID),
-    hashBpmn,
-    proceed,
-  ]);
+  const artifactCidIn = Buffer.from(artifactCID).toString('hex');
+  const byteStringArtifactCidIn = byteString(artifactCidIn);
+  try {
+    return conStr1([
+      buyer,
+      seller,
+      newNodeState,
+      byteStringArtifactCidIn,
+      hashBpmn,
+      proceed,
+    ]);
+  } catch (error) {
+    console.error('Error updating datum:', error);
+    throw error;
+  }
 };
